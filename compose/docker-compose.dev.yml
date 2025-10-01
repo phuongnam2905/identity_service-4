@@ -1,0 +1,42 @@
+version: "3.9"
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: appdb
+      POSTGRES_USER: appuser
+      POSTGRES_PASSWORD: apppass
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_dev:/var/lib/postgresql/data
+      - ../docker/initdb:/docker-entrypoint-initdb.d:ro
+    networks: [ backend ]
+
+  app:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    image: demo-app:dev
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: appdb
+      DB_USER: appuser
+      DB_PASS: apppass
+      SERVER_PORT: 8080
+    ports:
+      - "8080:8080"
+    volumes:
+      - ../config:/opt/app/config:ro
+    depends_on:
+      - db
+    networks: [ backend ]
+
+volumes:
+  db_dev:
+
+networks:
+  backend:
+    driver: bridge

@@ -1,0 +1,220 @@
+version: "3.9"
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: demo_db
+    environment:
+      POSTGRES_DB: ${DB_NAME:-appdb}
+      POSTGRES_USER: ${DB_USER:-appuser}
+      POSTGRES_PASSWORD: ${DB_PASS:-apppass}
+      TZ: ${TZ:-UTC}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ../docker/initdb:/docker-entrypoint-initdb.d:ro
+    networks: [ backend ]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-appuser} -d ${DB_NAME:-appdb}"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  app:
+    image: ${APP_IMAGE:-demo-app:local}
+    container_name: demo_app
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      TZ: ${TZ:-UTC}
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-appdb}
+      DB_USER: ${DB_USER:-appuser}
+      DB_PASS: ${DB_PASS:-apppass}
+      SERVER_PORT: 8080
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    ports:
+      - "${APP_PORT:-8080}:8080"
+    networks: [ backend ]
+    restart: unless-stopped
+
+  # Tuỳ chọn: pgAdmin
+  pgadmin:
+    image: dpage/pgadmin4:8
+    container_name: demo_pgadmin
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@example.com}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-Admin#1234}
+    ports:
+      - "${PGADMIN_PORT:-5050}:80"
+    networks: [ backend ]
+    restart: unless-stopped
+
+  # Redis cache
+  redis:
+    image: redis:7-alpine
+    container_name: demo_redis
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    networks: [ backend ]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  db_data:
+
+networks:
+  backend:
+    driver: bridge
+
+
+#version: "3.9"
+#services:
+#  db:
+#    image: postgres:16-alpine
+#    container_name: demo_db
+#    environment:
+#      POSTGRES_DB: ${DB_NAME:-appdb}
+#      POSTGRES_USER: ${DB_USER:-appuser}
+#      POSTGRES_PASSWORD: ${DB_PASS:-apppass}
+#      TZ: ${TZ:-UTC}
+#    volumes:
+#      - db_data:/var/lib/postgresql/data
+#      - ../docker/initdb:/docker-entrypoint-initdb.d:ro
+#    networks: [ backend ]
+#    healthcheck:
+#      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-appuser} -d ${DB_NAME:-appdb}"]
+#      interval: 10s
+#      timeout: 3s
+#      retries: 5
+#
+#  app:
+#    image: ${APP_IMAGE:-demo-app:local}
+#    container_name: demo_app
+#    depends_on:
+#      db:
+#        condition: service_healthy
+#    environment:
+#      TZ: ${TZ:-UTC}
+#      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
+#      DB_HOST: db
+#      DB_PORT: 5432
+#      DB_NAME: ${DB_NAME:-appdb}
+#      DB_USER: ${DB_USER:-appuser}
+#      DB_PASS: ${DB_PASS:-apppass}
+#      SERVER_PORT: 8080
+#    ports:
+#      - "${APP_PORT:-8080}:8080"
+#    networks: [ backend ]
+#    restart: unless-stopped
+#    # nếu cần mount cấu hình ngoài (prod):
+#    # volumes:
+#    #   - ../config:/opt/app/config:ro
+#
+#  # Tuỳ chọn: pgAdmin
+#  pgadmin:
+#    image: dpage/pgadmin4:8
+#    container_name: demo_pgadmin
+#    depends_on:
+#      db:
+#        condition: service_healthy
+#    environment:
+#      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@example.com}
+#      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-Admin#1234}
+#    ports:
+#      - "${PGADMIN_PORT:-5050}:80"
+#    networks: [ backend ]
+#    restart: unless-stopped
+#
+#volumes:
+#  db_data:
+#
+#networks:
+#  backend:
+#    driver: bridge
+#version: "3.9"
+#services:
+#  db:
+#    image: mysql:8.4
+#    container_name: demo_db_part9
+#    environment:
+#      MYSQL_DATABASE: ${DB_NAME:-appdb}
+#      MYSQL_USER: ${DB_USER:-appuser}
+#      MYSQL_PASSWORD: ${DB_PASS:-apppass}
+#      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASS:-rootpass}
+#    ports:
+#      - "3307:3306"
+#    volumes:
+#      - db_data:/var/lib/mysql
+#      - ../docker/initdb:/docker-entrypoint-initdb.d:ro
+#    networks: [ backend ]
+#    healthcheck:
+#      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-p${DB_ROOT_PASS:-rootpass}"]
+#      interval: 10s
+#      timeout: 5s
+#      retries: 5
+#
+#  app:
+#    image: ${APP_IMAGE:-demo-app:local}
+#    container_name: demo_app_part9
+#    depends_on:
+#      db:
+#        condition: service_healthy
+#      redis:
+#        condition: service_healthy
+#    environment:
+#      TZ: ${TZ:-UTC}
+#      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
+#      DB_HOST: db
+#      DB_PORT: 3306
+#      DB_NAME: ${DB_NAME:-appdb}
+#      DB_USER: ${DB_USER:-appuser}
+#      DB_PASS: ${DB_PASS:-apppass}
+#      SERVER_PORT: 8080
+#      REDIS_HOST: redis
+#      REDIS_PORT: 6379
+#    ports:
+#      - "${APP_PORT:-8085}:8080"
+#    networks: [ backend ]
+#    restart: unless-stopped
+#
+#  redis:
+#    image: redis:7-alpine
+#    container_name: demo_redis
+#    ports:
+#      - "6379:6379"
+#    networks: [ backend ]
+#    healthcheck:
+#      test: ["CMD", "redis-cli", "ping"]
+#      interval: 5s
+#      timeout: 3s
+#      retries: 5
+#
+#  adminer:
+#    image: adminer:4
+#    container_name: demo_adminer
+#    depends_on:
+#      db:
+#        condition: service_healthy
+#    ports:
+#      - "${ADMINER_PORT:-8081}:8080"
+#    networks: [ backend ]
+#    restart: unless-stopped
+#
+#volumes:
+#  db_data:
+#
+#networks:
+#  backend:
+#    driver: bridge
