@@ -21,9 +21,9 @@ public class HelloController {
         return helloRepository.findAll();
     }
 
-    @GetMapping("/test1")
-    public List<Hello> getTest1() {
-        return helloRepository.findAll();
+    @GetMapping("/hello/Alice")
+    public String hello() {
+        return "Hello from Alice";
     }
 }
 
